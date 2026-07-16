@@ -1,0 +1,16 @@
+{
+  "name": "auth-profile",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "auth": "pnpm --filter auth-service start:dev",
+    "profile": "pnpm --filter profile-service start:dev",
+    "gateway": "pnpm --filter api-gateway start:dev",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f",
+    "db:migrate:auth": "pnpm --filter auth-service exec drizzle-kit migrate",
+    "db:migrate:profile": "pnpm --filter profile-service exec drizzle-kit migrate",
+    "db:migrate": "pnpm db:migrate:auth && pnpm db:migrate:profile"
+  }
+}

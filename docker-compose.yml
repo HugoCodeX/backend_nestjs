@@ -1,0 +1,42 @@
+services:
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  auth-postgres:
+    image: postgres:16-alpine
+    container_name: auth-postgres
+    environment:
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+      POSTGRES_DB: auth_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth_db"]
+      interval: 5s
+      retries: 10
+
+  profile-postgres:
+    image: postgres:16-alpine
+    container_name: profile-postgres
+    environment:
+      POSTGRES_USER: profile
+      POSTGRES_PASSWORD: profile
+      POSTGRES_DB: profile_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - profile_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U profile -d profile_db"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  auth_pg_data:
+  profile_pg_data:
