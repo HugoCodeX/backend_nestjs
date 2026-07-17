@@ -5,8 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1779745741477,
-      "tag": "0000_green_power_pack",
+      "when": 1784188781021,
+      "tag": "0000_better-auth-schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784246594203,
+      "tag": "0001_pale_owl",
       "breakpoints": true
     }
   ]

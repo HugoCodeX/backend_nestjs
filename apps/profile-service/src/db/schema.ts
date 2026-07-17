@@ -7,6 +7,10 @@ export const profiles = pgTable('profiles', {
   lastName: text('last_name').notNull().default(''),
   bio: text('bio').notNull().default(''),
   avatarUrl: text('avatar_url').notNull().default(''),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

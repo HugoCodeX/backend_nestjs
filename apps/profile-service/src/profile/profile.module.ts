@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
-import { AuthClient } from '../clients/auth.client';
-import { GrpcAuthGuard } from '../auth/guards/grpc-auth.guard';
+import { JwtGuard } from '../auth/jwt.guard';
 
 @Module({
   controllers: [ProfileController],
-  providers: [ProfileService, AuthClient, GrpcAuthGuard],
+  providers: [ProfileService, JwtGuard],
 })
 export class ProfileModule {}

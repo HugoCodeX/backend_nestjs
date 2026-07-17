@@ -20,14 +20,13 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@auth-profile/shared": "workspace:*",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
-    "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/throttler": "^6.5.0",
     "axios": "^1.16.1",
     "dotenv": "^17.4.2",
+    "helmet": "^8.0.0",
     "ioredis": "^5.10.1",
     "nestjs-throttler-storage-redis": "^0.5.1",
     "reflect-metadata": "^0.2.2",
@@ -70,7 +69,7 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)ts"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"

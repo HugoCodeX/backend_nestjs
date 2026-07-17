@@ -1,42 +1,93 @@
+name: nestjs-microservices
+
+# Compose de PRODUCCIÓN para Dokploy.
+# Las bases de datos y Redis se crean y gestionan en Dokploy.
+# Las variables de entorno se configuran en el panel de Dokploy.
+# Este archivo NO lee .env — todas las vars se inyectan externamente.
+
 services:
-  redis:
-    image: redis:7
-    container_name: redis
+  api-gateway:
+    container_name: api-gateway
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    image: nestjs-microservices/api-gateway:latest
+    restart: unless-stopped
     ports:
-      - "6379:6379"
-
-  auth-postgres:
-    image: postgres:16-alpine
-    container_name: auth-postgres
+      - "${GATEWAY_PORT:-3000}:3000"
     environment:
-      POSTGRES_USER: auth
-      POSTGRES_PASSWORD: auth
-      POSTGRES_DB: auth_db
-    ports:
-      - "5433:5432"
-    volumes:
-      - auth_pg_data:/var/lib/postgresql/data
+      PORT: 3000
+      RATE_LIMIT_PER_MIN: ${RATE_LIMIT_PER_MIN:-60}
+      REDIS_URL: ${REDIS_URL}
+      AUTH_SERVICE_URL: http://auth-service:3001
+      PROFILE_SERVICE_URL: http://profile-service:3002
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      profile-service:
+        condition: service_healthy
+    networks:
+      - app-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U auth -d auth_db"]
-      interval: 5s
-      retries: 10
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
-  profile-postgres:
-    image: postgres:16-alpine
-    container_name: profile-postgres
+  auth-service:
+    container_name: auth-service
+    build:
+      context: .
+      dockerfile: apps/auth-service/Dockerfile
+    image: nestjs-microservices/auth-service:latest
+    restart: unless-stopped
+    expose:
+      - "3001"
     environment:
-      POSTGRES_USER: profile
-      POSTGRES_PASSWORD: profile
-      POSTGRES_DB: profile_db
-    ports:
-      - "5434:5432"
-    volumes:
-      - profile_pg_data:/var/lib/postgresql/data
+      PORT: 3001
+      DATABASE_URL: ${AUTH_DATABASE_URL}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+      JWT_AUDIENCE: ${JWT_AUDIENCE}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL}
+    networks:
+      - app-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U profile -d profile_db"]
-      interval: 5s
-      retries: 10
+      test: ["CMD", "curl", "-fsS", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
-volumes:
-  auth_pg_data:
-  profile_pg_data:
+  profile-service:
+    container_name: profile-service
+    build:
+      context: .
+      dockerfile: apps/profile-service/Dockerfile
+    image: nestjs-microservices/profile-service:latest
+    restart: unless-stopped
+    expose:
+      - "3002"
+    environment:
+      PORT: 3002
+      DATABASE_URL: ${PROFILE_DATABASE_URL}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      JWT_ISSUER: ${BETTER_AUTH_URL}
+      JWT_AUDIENCE: ${JWT_AUDIENCE}
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3002/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  app-net:
+    driver: bridge

@@ -1,0 +1,141 @@
+name: nestjs-microservices-local
+
+# Compose LOCAL para desarrollo: incluye Postgres + Redis + 3 servicios.
+# Las credenciales por defecto son las mismas que en apps/*/.env.example.
+# Si necesitas personalizarlas, crea un .env en la raíz del proyecto.
+# Uso: docker compose -f docker-compose.local.yml up -d --build
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - app-net
+
+  auth-postgres:
+    image: postgres:16-alpine
+    container_name: auth-postgres
+    environment:
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+      POSTGRES_DB: auth_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - app-net
+
+  profile-postgres:
+    image: postgres:16-alpine
+    container_name: profile-postgres
+    environment:
+      POSTGRES_USER: profile
+      POSTGRES_PASSWORD: profile
+      POSTGRES_DB: profile_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - profile_pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U profile -d profile_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - app-net
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    image: nestjs-microservices/api-gateway:local
+    container_name: api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      REDIS_URL: redis://redis:6379
+      RATE_LIMIT_PER_MIN: 60
+      AUTH_SERVICE_URL: http://auth-service:3001
+      PROFILE_SERVICE_URL: http://profile-service:3002
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      profile-service:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-net
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: apps/auth-service/Dockerfile
+    image: nestjs-microservices/auth-service:local
+    container_name: auth-service
+    expose:
+      - "3001"
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgres://auth:auth@auth-postgres:5432/auth_db
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET es requerido (genera uno con: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-internal-services-dev}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-net
+
+  profile-service:
+    build:
+      context: .
+      dockerfile: apps/profile-service/Dockerfile
+    image: nestjs-microservices/profile-service:local
+    container_name: profile-service
+    expose:
+      - "3002"
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgres://profile:profile@profile-postgres:5432/profile_db
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      JWT_ISSUER: ${BETTER_AUTH_URL:-http://localhost:3000}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-internal-services-dev}
+    depends_on:
+      profile-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-net
+
+volumes:
+  auth_pg_data:
+  profile_pg_data:
+
+networks:
+  app-net:
+    driver: bridge

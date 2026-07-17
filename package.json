@@ -2,15 +2,34 @@
   "name": "auth-profile",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
   "scripts": {
     "auth": "pnpm --filter auth-service start:dev",
     "profile": "pnpm --filter profile-service start:dev",
     "gateway": "pnpm --filter api-gateway start:dev",
-    "db:up": "docker compose up -d",
-    "db:down": "docker compose down",
-    "db:logs": "docker compose logs -f",
-    "db:migrate:auth": "pnpm --filter auth-service exec drizzle-kit migrate",
-    "db:migrate:profile": "pnpm --filter profile-service exec drizzle-kit migrate",
-    "db:migrate": "pnpm db:migrate:auth && pnpm db:migrate:profile"
+    "dev": "pnpm build:libs && pnpm dev:services",
+    "dev:services": "concurrently -n auth-service,profile-service,api-gateway -c blue,green,magenta --kill-others-on-fail \"pnpm --filter auth-service start:dev\" \"pnpm --filter profile-service start:dev\" \"pnpm --filter api-gateway start:dev\"",
+    "dev:db": "pnpm db:up",
+    "build:libs": "pnpm --filter @auth-profile/auth build",
+    "build:auth": "pnpm build:libs && pnpm --filter auth-service build",
+    "build:profile": "pnpm build:libs && pnpm --filter profile-service build",
+    "build:gateway": "pnpm build:libs && pnpm --filter api-gateway build",
+    "build": "pnpm build:libs && pnpm -r --filter \"./apps/*\" build",
+    "db:up": "docker compose -f docker-compose.local.yml up -d redis auth-postgres profile-postgres",
+    "db:down": "docker compose -f docker-compose.local.yml down",
+    "db:logs": "docker compose -f docker-compose.local.yml logs -f",
+    "db:migrate:auth": "pnpm build:libs && pnpm --filter auth-service exec drizzle-kit migrate",
+    "db:migrate:profile": "pnpm build:libs && pnpm --filter profile-service exec drizzle-kit migrate",
+    "db:migrate": "pnpm db:migrate:auth && pnpm db:migrate:profile",
+    "db:generate:auth": "pnpm build:libs && pnpm --filter auth-service exec drizzle-kit generate",
+    "db:generate:profile": "pnpm build:libs && pnpm --filter profile-service exec drizzle-kit generate",
+    "lint": "pnpm -r --filter \"./apps/*\" lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   }
 }
